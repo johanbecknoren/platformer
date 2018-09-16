@@ -1,5 +1,5 @@
 images {
-  image: "/player/crosshairs-png.png"
+  image: "/assets/images/crosshairs-png.png"
 }
 margin: 0
 extrude_borders: 0

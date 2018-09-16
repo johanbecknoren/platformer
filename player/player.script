@@ -7,7 +7,7 @@ cross_tints[2] = vmath.vector4(1,1,0,1)
 cross_tints[3] = vmath.vector4(0,1,0,1)
 cross_tints[4] = vmath.vector4(0,1,1,1)
 
-go.property("crosshair_speed", 2000)
+go.property("crosshair_speed", 5000)
 go.property("player_speed", 700)
 go.property("player_jump_speed", 1500)
 go.property("velocity", vmath.vector3(0,0,0))
@@ -65,6 +65,7 @@ function init(self)
 
 	self.gp = {}
 	self.is_jumping = false
+	self.correction = vmath.vector3(0)
 
 	init_gp(self)
 
@@ -79,6 +80,8 @@ function final(self)
 end
 
 function update(self, dt)
+	self.correction = vmath.vector3()
+	
 	local pos_player = go.get_position()
 	
 	-- update position (gravity etc.)
@@ -101,13 +104,25 @@ function update(self, dt)
 end
 
 function on_message(self, message_id, message, sender)
-	if message_id == hash("contact_point_response") then
-		self.is_jumping = false
-		local new_pos = go.get_position() + (message.distance * message.normal)
-		self.velocity.x = self.velocity.x - self.velocity.x * message.normal.x
-		self.velocity.y = self.velocity.y - self.velocity.y * message.normal.y
-		self.velocity.z = self.velocity.z - self.velocity.z * message.normal.z
-		go.set_position(new_pos)
+	if message_id == hash("contact_point_response") and message.distance > 0 then
+		local proj = vmath.project(self.correction, message.normal * message.distance)
+
+		if proj < 1 then
+			-- Only care for projections that does not overshoot.
+			local comp = (message.distance - message.distance * proj) * message.normal
+			-- Apply compensation
+			
+			if message.normal.y > 0 then -- no wall jumps!
+				self.is_jumping = false
+			end
+			local comp = (message.distance - message.distance * proj) * message.normal
+			local new_pos = go.get_position() + comp
+			self.correction = self.correction + comp
+			go.set_position(new_pos)
+			self.velocity.x = self.velocity.x - self.velocity.x * math.abs(message.normal.x)
+			self.velocity.y = self.velocity.y - self.velocity.y * math.abs(message.normal.y)
+			self.velocity.z = self.velocity.z - self.velocity.z * math.abs(message.normal.z)
+		end
 	end
 end
 
