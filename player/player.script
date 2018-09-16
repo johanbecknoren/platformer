@@ -1,8 +1,11 @@
 local gamepads = require("input.gamepads")
 
-local gp = {}
-local kb = {} --keyboard
-local is_jumping = false
+-- Crosshair tints, 4 player max
+local cross_tints = {}
+cross_tints[1] = vmath.vector4(1,0,0,1)
+cross_tints[2] = vmath.vector4(1,1,0,1)
+cross_tints[3] = vmath.vector4(0,1,0,1)
+cross_tints[4] = vmath.vector4(0,1,1,1)
 
 go.property("crosshair_speed", 2000)
 go.property("player_speed", 700)
@@ -10,51 +13,64 @@ go.property("player_jump_speed", 1500)
 go.property("velocity", vmath.vector3(0,0,0))
 go.property("gamepad_id", 0)
 
-gp.stick_values = { stick_left = vmath.vector3(0, 0, 0),
-					stick_right = vmath.vector3(0, 0, 0)}
+local function init_gp(self)
+	self.gp.stick_values = { stick_left = vmath.vector3(0, 0, 0),
+	stick_right = vmath.vector3(0, 0, 0)}
 
-gp.pad_values = {right = { left = 0, right = 0, up = 0, down = 0},
-left = { left = 0, right = 0, up = 0, down = 0}}
+	self.gp.pad_values = {right = { left = 0, right = 0, up = 0, down = 0},
+	left = { left = 0, right = 0, up = 0, down = 0}}
 
-gp.on_input = function(self, action_id, action)
-	--local velo = vmath.vector3(0)
-	if (action_id == hash("GAMEPAD_LSTICK_LEFT")) then
-		gp.stick_values.stick_left.x = -action.value
-	elseif (action_id == hash("GAMEPAD_LSTICK_RIGHT")) then
-		gp.stick_values.stick_left.x = action.value
-	elseif (action_id == hash("GAMEPAD_LSTICK_UP")) then
-		gp.stick_values.stick_left.y = action.value
-	elseif (action_id == hash("GAMEPAD_LSTICK_DOWN")) then
-		gp.stick_values.stick_left.y = -action.value
-	end
+	self.gp.on_input = function(self, action_id, action)
+		--local velo = vmath.vector3(0)
+		if (action_id == hash("GAMEPAD_LSTICK_LEFT")) then
+			self.gp.stick_values.stick_left.x = -action.value
+		elseif (action_id == hash("GAMEPAD_LSTICK_RIGHT")) then
+			self.gp.stick_values.stick_left.x = action.value
+		elseif (action_id == hash("GAMEPAD_LSTICK_UP")) then
+			self.gp.stick_values.stick_left.y = action.value
+		elseif (action_id == hash("GAMEPAD_LSTICK_DOWN")) then
+			self.gp.stick_values.stick_left.y = -action.value
+		end
 
-	if (action_id == hash("GAMEPAD_RSTICK_LEFT")) then
-		gp.stick_values.stick_right.x = -action.value
-	elseif (action_id == hash("GAMEPAD_RSTICK_RIGHT")) then
-		gp.stick_values.stick_right.x = action.value
-	elseif (action_id == hash("GAMEPAD_RSTICK_UP")) then
-		gp.stick_values.stick_right.y = action.value
-	elseif (action_id == hash("GAMEPAD_RSTICK_DOWN")) then
-		gp.stick_values.stick_right.y = -action.value
-	end
+		if (action_id == hash("GAMEPAD_RSTICK_LEFT")) then
+			self.gp.stick_values.stick_right.x = -action.value
+		elseif (action_id == hash("GAMEPAD_RSTICK_RIGHT")) then
+			self.gp.stick_values.stick_right.x = action.value
+		elseif (action_id == hash("GAMEPAD_RSTICK_UP")) then
+			self.gp.stick_values.stick_right.y = action.value
+		elseif (action_id == hash("GAMEPAD_RSTICK_DOWN")) then
+			self.gp.stick_values.stick_right.y = -action.value
+		end
 
-	if action_id == hash("GAMEPAD_RPAD_LEFT") then--and action.pressed then--and is_jumping == false then
-		--is_jumping = true
-		--self.velocity.y = self.velocity.y + self.player_jump_speed
-		gp.pad_values.right.left = action.value
-	elseif action_id == hash("GAMEPAD_RPAD_RIGHT") then
-		gp.pad_values.right.right = action.value
-	elseif action_id == hash("GAMEPAD_RPAD_UP") then
-		gp.pad_values.right.up = action.value
-	elseif action_id == hash("GAMEPAD_RPAD_DOWN") then
-		gp.pad_values.right.down = action.value
+		if action_id == hash("GAMEPAD_RPAD_LEFT") then--and action.pressed then--and is_jumping == false then
+			self.gp.pad_values.right.left = action.value
+		elseif action_id == hash("GAMEPAD_RPAD_RIGHT") then
+			self.gp.pad_values.right.right = action.value
+		elseif action_id == hash("GAMEPAD_RPAD_UP") then
+			self.gp.pad_values.right.up = action.value
+		elseif action_id == hash("GAMEPAD_RPAD_DOWN") then
+			-- Poor-mans jumping state in gamepad code...
+			--[[if action.pressed and is_jumping == false then
+				is_jumping = true
+				self.velocity.y = self.velocity.y + self.player_jump_speed
+			end--]]
+			self.gp.pad_values.right.down = action.value
+		end
 	end
 end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	print("PLAYER INIT! gp id: " .. tostring(self.gamepad_id))
-	gamepads.add_gamepad(self.gamepad_id, gp)
+
+	self.gp = {}
+	self.is_jumping = false
+
+	init_gp(self)
+
+	go.set("crosshair#sprite", "tint", cross_tints[self.gamepad_id + 1])
+	
+	gamepads.add_gamepad(self.gamepad_id, self.gp)
 end
 
 function final(self)
@@ -70,15 +86,15 @@ function update(self, dt)
 	pos_player.y = pos_player.y + self.velocity.y * dt
 	
 	-- gamepad input
-	pos_player.x = pos_player.x + gp.stick_values.stick_left.x * dt * self.player_speed
+	pos_player.x = pos_player.x + self.gp.stick_values.stick_left.x * dt * self.player_speed
 	go.set_position(pos_player)
 
 	local pos_cross = go.get_position("crosshair")
 	
-	pos_cross.x = pos_cross.x + gp.stick_values.stick_right.x * dt * self.crosshair_speed
-	pos_cross.y = pos_cross.y + gp.stick_values.stick_right.y * dt * self.crosshair_speed
-	if vmath.length(pos_cross) > 500 then
-		pos_cross = vmath.normalize(pos_cross) * 500
+	pos_cross.x = pos_cross.x + self.gp.stick_values.stick_right.x * dt * self.crosshair_speed
+	pos_cross.y = pos_cross.y + self.gp.stick_values.stick_right.y * dt * self.crosshair_speed
+	if vmath.length(pos_cross) > 350 then
+		pos_cross = vmath.normalize(pos_cross) * 350
 	end
 
 	go.set_position(pos_cross, "crosshair")
@@ -86,7 +102,7 @@ end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("contact_point_response") then
-		is_jumping = false
+		self.is_jumping = false
 		local new_pos = go.get_position() + (message.distance * message.normal)
 		self.velocity.x = self.velocity.x - self.velocity.x * message.normal.x
 		self.velocity.y = self.velocity.y - self.velocity.y * message.normal.y
@@ -104,10 +120,16 @@ function on_input(self, action_id, action)
 	if action.gamepad ~= nil and action.gamepad == self.gamepad_id then
 		label.set_text("#label", "Gamepad id: " .. tostring(self.gamepad_id))
 		--gp.on_input(self, action_id, action)
-		--pprint(gamepads.get(msg.url()))
-		--gamepads.get(msg.url()):on_input(self, action_id, action)
-		--pprint(gamepads)
-		gamepads[self.gamepad_id].on_input(self, action_id, action)
+		
+		--gamepads[self.gamepad_id].on_input(self, action_id, action)
+		self.gp.on_input(self, action_id, action)
+
+		-- Handle gamepad state
+		if self.gp.pad_values.right.down == 1 and action.pressed and self.is_jumping == false then
+			-- jump!
+			self.is_jumping = true
+			self.velocity.y = self.velocity.y + self.player_jump_speed
+		end
 	end
 
 	-- keyboard (for debug)
@@ -116,27 +138,27 @@ function on_input(self, action_id, action)
 		self.velocity.y = self.velocity.y + self.player_jump_speed
 	elseif action_id == hash("KEY_A") then
 		if action.pressed then
-			gp.stick_values.stick_left.x = -1
+			self.gp.stick_values.stick_left.x = -1
 		elseif action.released then
-			gp.stick_values.stick_left.x = 0
+			self.gp.stick_values.stick_left.x = 0
 		end
 	elseif action_id == hash("KEY_D") then
 		if action.pressed then
-			gp.stick_values.stick_left.x = 1
+			self.gp.stick_values.stick_left.x = 1
 		elseif action.released then
-			gp.stick_values.stick_left.x = 0
+			self.gp.stick_values.stick_left.x = 0
 		end
 	elseif action_id == hash("KEY_W") then
 		if action.pressed then
-			gp.stick_values.stick_left.y = 1
+			self.gp.stick_values.stick_left.y = 1
 		elseif action.released then
-			gp.stick_values.stick_left.y = 0
+			self.gp.stick_values.stick_left.y = 0
 		end
 	elseif action_id == hash("KEY_S") then
 		if action.pressed then
-			gp.stick_values.stick_left.y = -1
+			self.gp.stick_values.stick_left.y = -1
 		elseif action.released then
-			gp.stick_values.stick_left.y = 0
+			self.gp.stick_values.stick_left.y = 0
 		end
 	end
 end
