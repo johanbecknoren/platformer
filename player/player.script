@@ -1,8 +1,10 @@
-local gp = {} --gamepad
+local gp = {}
 local kb = {} --keyboard
+local is_jumping = false
 
-go.property("crosshair_speed", 1100)
+go.property("crosshair_speed", 2000)
 go.property("player_speed", 700)
+go.property("player_jump_speed", 1500)
 go.property("velocity", vmath.vector3(0,0,0))
 go.property("gamepad_id", 0)
 
@@ -34,13 +36,15 @@ gp.on_input = function(self, action_id, action)
 		gp.stick_values.stick_right.y = -action.value
 	end
 
-	--[[velo.x = gp.stick_values.stick_left.x
-	velo.y = gp.stick_values.stick_left.y
-	return velo--]]
+	if action_id == hash("GAMEPAD_RPAD_DOWN") and action.pressed and is_jumping == false then
+		is_jumping = true
+		self.velocity.y = self.velocity.y + self.player_jump_speed
+	end
 end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
+	print("PLAYER INIT! gp id: " .. tostring(self.gamepad_id))
 end
 
 function final(self)
@@ -52,41 +56,50 @@ function update(self, dt)
 	local pos_player = go.get_position()
 	
 	-- update position (gravity etc.)
-	--self.velocity.y = self.velocity.y + (4 * (-9.82))
-	--pos_player.y = pos_player.y + self.velocity.y * dt
+	self.velocity.y = self.velocity.y + (4 * (-(9.82)))
+	pos_player.y = pos_player.y + self.velocity.y * dt
 	
 	-- gamepad input
 	pos_player.x = pos_player.x + gp.stick_values.stick_left.x * dt * self.player_speed
-	pos_player.y = pos_player.y + gp.stick_values.stick_left.y * dt * self.player_speed
 	go.set_position(pos_player)
 
 	local pos_cross = go.get_position("crosshair")
-	-- Flipped axes!?
+	
 	pos_cross.x = pos_cross.x + gp.stick_values.stick_right.x * dt * self.crosshair_speed
 	pos_cross.y = pos_cross.y + gp.stick_values.stick_right.y * dt * self.crosshair_speed
+	if vmath.length(pos_cross) > 500 then
+		pos_cross = vmath.normalize(pos_cross) * 500
+	end
+
 	go.set_position(pos_cross, "crosshair")
 end
 
 function on_message(self, message_id, message, sender)
-	-- Add message-handling code here
-	-- Remove this function if not needed
+	if message_id == hash("contact_point_response") then
+		is_jumping = false
+		local new_pos = go.get_position() + (message.distance * message.normal)
+		self.velocity.x = self.velocity.x - self.velocity.x * message.normal.x
+		self.velocity.y = self.velocity.y - self.velocity.y * message.normal.y
+		self.velocity.z = self.velocity.z - self.velocity.z * message.normal.z
+		go.set_position(new_pos)
+	end
 end
 
 function on_input(self, action_id, action)
 	if action_id ~= nil then
-		print(action_id, action.value)
+		--print(action_id, action.value)
 	end
 
 	-- gamepad
-	if action.gamepad ~= nil then--and action.gamepad == self.gamepad_id then
-		--pprint(action)
+	if action.gamepad ~= nil and action.gamepad == self.gamepad_id then
+		label.set_text("#label", "Gamepad id: " .. tostring(self.gamepad_id))
 		gp.on_input(self, action_id, action)
 	end
 
-	-- keyboard
+	-- keyboard (for debug)
 	if action_id == hash("KEY_SPACE") and action.pressed then
 		pprint("JUMP!")
-		self.velocity.y = self.velocity.y + 1000
+		self.velocity.y = self.velocity.y + self.player_jump_speed
 	elseif action_id == hash("KEY_A") then
 		if action.pressed then
 			gp.stick_values.stick_left.x = -1
