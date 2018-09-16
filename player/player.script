@@ -1,3 +1,5 @@
+local gamepads = require("input.gamepads")
+
 local gp = {}
 local kb = {} --keyboard
 local is_jumping = false
@@ -36,15 +38,23 @@ gp.on_input = function(self, action_id, action)
 		gp.stick_values.stick_right.y = -action.value
 	end
 
-	if action_id == hash("GAMEPAD_RPAD_DOWN") and action.pressed and is_jumping == false then
-		is_jumping = true
-		self.velocity.y = self.velocity.y + self.player_jump_speed
+	if action_id == hash("GAMEPAD_RPAD_LEFT") then--and action.pressed then--and is_jumping == false then
+		--is_jumping = true
+		--self.velocity.y = self.velocity.y + self.player_jump_speed
+		gp.pad_values.right.left = action.value
+	elseif action_id == hash("GAMEPAD_RPAD_RIGHT") then
+		gp.pad_values.right.right = action.value
+	elseif action_id == hash("GAMEPAD_RPAD_UP") then
+		gp.pad_values.right.up = action.value
+	elseif action_id == hash("GAMEPAD_RPAD_DOWN") then
+		gp.pad_values.right.down = action.value
 	end
 end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	print("PLAYER INIT! gp id: " .. tostring(self.gamepad_id))
+	gamepads.add_gamepad(self.gamepad_id, gp)
 end
 
 function final(self)
@@ -93,7 +103,11 @@ function on_input(self, action_id, action)
 	-- gamepad
 	if action.gamepad ~= nil and action.gamepad == self.gamepad_id then
 		label.set_text("#label", "Gamepad id: " .. tostring(self.gamepad_id))
-		gp.on_input(self, action_id, action)
+		--gp.on_input(self, action_id, action)
+		--pprint(gamepads.get(msg.url()))
+		--gamepads.get(msg.url()):on_input(self, action_id, action)
+		--pprint(gamepads)
+		gamepads[self.gamepad_id].on_input(self, action_id, action)
 	end
 
 	-- keyboard (for debug)
