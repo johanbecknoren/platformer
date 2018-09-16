@@ -70,3 +70,7 @@ gamepad_trigger {
   input: GAMEPAD_RPAD_RIGHT
   action: "GAMEPAD_RPAD_RIGHT"
 }
+gamepad_trigger {
+  input: GAMEPAD_RTRIGGER
+  action: "GAMEPAD_RTRIGGER"
+}

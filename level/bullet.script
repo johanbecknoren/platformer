@@ -1,0 +1,36 @@
+local rendercam = require "rendercam.rendercam"
+
+go.property("speed", 200)
+go.property("type", hash("bullet"))
+go.property("damage", 1)
+go.property("distance", 2000)
+go.property("destroy_walls", true)
+go.property("particles", hash(""))
+
+function init(self)
+	self.initial_position = go.get_position()
+end
+
+function update(self, dt)
+	local pos = go.get_position()
+	local d = vmath.rotate(go.get_rotation(), vmath.vector3(0, 1, 0))
+	pos = pos + d * self.speed * dt
+	go.set_position(pos)
+	local distance_traveled = vmath.length(pos - self.initial_position)
+	if pos.x < -16 or pos.x > 1280*rendercam.get_ortho_scale() + 16 or pos.y < -16 or pos.y > 720*rendercam.get_ortho_scale() + 16 or distance_traveled > self.distance then
+		go.delete()
+		if self.explosion ~= EMPTY_HASH then
+			explosions.create(go.get_world_position(), self.explosion)
+		end
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("contact_point_response") and (message.other_group == hash("level") or message.other_group == hash("player")) then
+		local angle = -math.atan2(-message.normal.x, -message.normal.y)
+		local quat = vmath.quat_rotation_z(angle)
+		go.set_rotation(quat)
+		particlefx.play("#bullet_hit")
+		go.delete()
+	end
+end

@@ -1,11 +1,11 @@
+local rendercam = require "rendercam.rendercam"
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	msg.post("#level-proxy", "load")
-	--msg.post("#gamepad-select-proxy", "load")
 
-	go.set("camera#script", "orthoScale", 2)
+	rendercam.set_ortho_scale(2)
 end
-
 function on_message(self, message_id, message, sender)
 	if message_id == hash("proxy_loaded") then
 		-- Proxy is loaded. Init and enable it.
