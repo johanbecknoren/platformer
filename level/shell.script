@@ -2,9 +2,8 @@ go.property("velocity", vmath.vector3(0,0,0))
 go.property("angular_velocity", 0)
 
 function init(self)
-	timer.delay(2, false, function(self) go.delete() end)
 	pprint(self.velocity)
-	pprint(self.angular_velocity)
+	self.had_contact = false
 end
 
 function update(self, dt)
@@ -13,7 +12,7 @@ function update(self, dt)
 
 	-- update position (gravity etc.)
 	self.velocity.y = self.velocity.y + (4 * (-(9.82)))
-	pos.y = pos.y + self.velocity.y * dt
+	pos = pos + self.velocity * dt
 	go.set_position(pos)
 
 	local rot = go.get_rotation()
@@ -27,5 +26,10 @@ function on_message(self, message_id, message)
 		self.velocity.y =  -0.3 * self.velocity.y * math.abs(message.normal.y)
 		self.velocity.z = self.velocity.z - self.velocity.z * math.abs(message.normal.z)
 		go.set_position(newpos)
+
+		if self.had_contact == false then
+			self.had_contact = true
+			timer.delay(0.5, false, function(self) go.delete() end)
+		end
 	end
 end

@@ -17,7 +17,7 @@ function update(self, dt)
 	pos = pos + d * self.speed * dt
 	go.set_position(pos)
 	local distance_traveled = vmath.length(pos - self.initial_position)
-	if pos.x < -16 or pos.x > 1280*rendercam.get_ortho_scale() + 16 or pos.y < -16 or pos.y > 720*rendercam.get_ortho_scale() + 16 or distance_traveled > self.distance then
+	if pos.x < -16 or pos.x > rendercam.window.x*rendercam.get_ortho_scale() + 16 or pos.y < -16 or pos.y > rendercam.window.y*rendercam.get_ortho_scale() + 16 or distance_traveled > self.distance then
 		go.delete()
 		if self.explosion ~= EMPTY_HASH then
 			explosions.create(go.get_world_position(), self.explosion)

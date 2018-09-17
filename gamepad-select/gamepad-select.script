@@ -10,12 +10,4 @@ function on_message(self, message_id, message, sender)
 end
 
 function on_input(self, action_id, action)
-	if action.gamepad ~= nil and live_gamepads[action.gamepad] == nil and #live_gamepads < 5 then
-		--local props = {}
-		--props[hash("/player")] = {gamepad_id = action.gamepad}
-		--local player_id = collectionfactory.create("/controller#player_factory", vmath.vector3(200,500,0), vmath.quat(), props)
-		live_gamepads[action.gamepad] = 1
-		pprint(action.gamepad)
-		--go.set(msg.url(nil, player_id["/player"], "gamepad-input"), "gamepad_id", action.gamepad)
-	end
 end
