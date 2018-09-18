@@ -70,57 +70,7 @@ local function take_damage(self, damage)
 end
 
 local function init_gp(self)
-	self.gp.stick_values = { stick_left = vmath.vector3(0, 0, 0),
-	stick_right = vmath.vector3(0, 0, 0)}
-
-	self.gp.pad_values = {right = { left = 0, right = 0, up = 0, down = 0},
-	left = { left = 0, right = 0, up = 0, down = 0}}
-
-	self.gp.trigger_values = {trigger_right = 0, trigger_left = 0}
-
-	self.gp.on_input = function(self, action_id, action)
-		--local velo = vmath.vector3(0)
-		if (action_id == hash("GAMEPAD_LSTICK_LEFT")) then
-			self.gp.stick_values.stick_left.x = -action.value
-		elseif (action_id == hash("GAMEPAD_LSTICK_RIGHT")) then
-			self.gp.stick_values.stick_left.x = action.value
-		elseif (action_id == hash("GAMEPAD_LSTICK_UP")) then
-			self.gp.stick_values.stick_left.y = action.value
-		elseif (action_id == hash("GAMEPAD_LSTICK_DOWN")) then
-			self.gp.stick_values.stick_left.y = -action.value
-		end
-
-		if (action_id == hash("GAMEPAD_RSTICK_LEFT")) then
-			self.gp.stick_values.stick_right.x = -action.value
-		elseif (action_id == hash("GAMEPAD_RSTICK_RIGHT")) then
-			self.gp.stick_values.stick_right.x = action.value
-		elseif (action_id == hash("GAMEPAD_RSTICK_UP")) then
-			self.gp.stick_values.stick_right.y = action.value
-		elseif (action_id == hash("GAMEPAD_RSTICK_DOWN")) then
-			self.gp.stick_values.stick_right.y = -action.value
-		end
-
-		if action_id == hash("GAMEPAD_RPAD_LEFT") then--and action.pressed then--and is_jumping == false then
-			self.gp.pad_values.right.left = action.value
-		elseif action_id == hash("GAMEPAD_RPAD_RIGHT") then
-			self.gp.pad_values.right.right = action.value
-		elseif action_id == hash("GAMEPAD_RPAD_UP") then
-			self.gp.pad_values.right.up = action.value
-		elseif action_id == hash("GAMEPAD_RPAD_DOWN") then
-			-- Poor-mans jumping state in gamepad code...
-			--[[if action.pressed and is_jumping == false then
-				is_jumping = true
-				self.velocity.y = self.velocity.y + self.player_jump_speed
-			end--]]
-			self.gp.pad_values.right.down = action.value
-		end
-
-		if action_id == hash("GAMEPAD_RTRIGGER") then
-			self.gp.trigger_values.trigger_right = action.value
-		elseif action_id == hash("GAMEPAD_LTRIGGER") then
-			self.gp.trigger_values.trigger_left = action.value
-		end
-	end
+	self.gp = gamepads.init_gamepad()
 end
 
 function init(self)
@@ -138,8 +88,6 @@ function init(self)
 	init_gp(self)
 
 	go.set("crosshair#sprite", "tint", cross_tints[self.gamepad_id + 1])
-	
-	gamepads.add_gamepad(self.gamepad_id, self.gp)
 end
 
 function final(self)
@@ -211,7 +159,8 @@ function on_input(self, action_id, action)
 		--gp.on_input(self, action_id, action)
 		
 		--gamepads[self.gamepad_id].on_input(self, action_id, action)
-		self.gp.on_input(self, action_id, action)
+		--self.gp.on_input(self, action_id, action)
+		self.gp = gamepads.on_input(self, action_id, action, self.gp)
 
 		------ Handle gamepad state
 		-- jump!
