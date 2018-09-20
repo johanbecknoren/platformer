@@ -12,10 +12,21 @@ end
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	-- simulate gamepad
-	spawn_player(self, 1)
+	--spawn_player(self, 1)
 end
 
 function on_message(self, message_id, message, sender)
+	pprint("LEVEL on_message")
+	pprint(message_id)
+	if message_id == hash("live_gamepads") then
+		live_gamepads = message.live_gamepads
+		pprint("LEVEL")
+		pprint(live_gamepads)
+		for gamepad_id, _ in pairs(live_gamepads) do
+			pprint("spawning player, gamepad_id: ", gamepad_id)
+			spawn_player(self, gamepad_id)
+		end
+	end
 end
 
 function on_input(self, action_id, action)
@@ -23,7 +34,7 @@ function on_input(self, action_id, action)
 	-- if not, spawn a new player and associate gamepad id to that player
 
 	if action.gamepad ~= nil and live_gamepads[action.gamepad] == nil then
-		spawn_player(self, action.gamepad)
+		--spawn_player(self, action.gamepad)
 		--[[local props = {}
 		props[hash("/player")] = {gamepad_id = action.gamepad}
 		local player_id = collectionfactory.create("/controller#player_factory", vmath.vector3(500 + 300*action.gamepad,500,0), vmath.quat(), props)

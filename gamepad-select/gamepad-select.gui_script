@@ -7,6 +7,10 @@ local gp_ready_count = 0
 local cross_speed = 25
 local live_gamepads = {}
 
+local timer_start_game = nil
+
+local take_input = true
+
 local player_tints = {}
 player_tints[1] = vmath.vector4(1,0,0,1) -- red
 player_tints[2] = vmath.vector4(0,1,0,1) -- green
@@ -84,52 +88,80 @@ function init(self)
 	
 end
 
+local function start_game(self, _, _)
+	pprint("START GAME!")
+	take_input = false
+	-- trim live_gamepads table and pass as payload to loader, to pass on to level collection
+	-- keep gamepad id and gamepad input struct
+	for gamepad_id,v in pairs(live_gamepads) do
+		live_gamepads[gamepad_id]["gp_counter"] = nil
+		--live_gamepads[gamepad_id]["gp"] = gamepads.init_gamepad()
+		live_gamepads[gamepad_id]["controller"] = nil
+		live_gamepads[gamepad_id]["lstick"] = nil
+		live_gamepads[gamepad_id]["rstick"] = nil
+		live_gamepads[gamepad_id]["cross"] = nil
+		live_gamepads[gamepad_id]["ready"] = nil
+		live_gamepads[gamepad_id]["ready_state"] = nil
+		live_gamepads[gamepad_id]["lstick_init_pos"] = nil
+		live_gamepads[gamepad_id]["rstick_init_pos"] = nil
+	end
+
+	msg.post("main:/loader", "start_game", {live_gamepads = live_gamepads})
+end
+
 function on_message(self, message_id, message, sender)
 	-- Add message-handling code here
 	-- Remove this function if not needed
 end
 
 function update(self, dt)
-	for gamepad_id,v in pairs(live_gamepads) do
+	if take_input == true then
+		for gamepad_id,v in pairs(live_gamepads) do
+			local gp = live_gamepads[gamepad_id]["gp"]
+			local lstick = live_gamepads[gamepad_id]["lstick"]
+			local rstick = live_gamepads[gamepad_id]["rstick"]
+			local lstick_init_pos = live_gamepads[gamepad_id]["lstick_init_pos"]
+			local rstick_init_pos = live_gamepads[gamepad_id]["rstick_init_pos"]
+			
+			local stick_rad = 13
+			local lpos = vmath.vector3(0)
+			local rpos = vmath.vector3(0)
+			lpos.x = gp.stick_values.stick_left.x * stick_rad + lstick_init_pos.x
+			lpos.y = gp.stick_values.stick_left.y * stick_rad + lstick_init_pos.y
+			rpos.x = gp.stick_values.stick_right.x * stick_rad + rstick_init_pos.x
+			rpos.y = gp.stick_values.stick_right.y * stick_rad + rstick_init_pos.y
 
-		local gp = live_gamepads[gamepad_id]["gp"]
-		local lstick = live_gamepads[gamepad_id]["lstick"]
-		local rstick = live_gamepads[gamepad_id]["rstick"]
-		local lstick_init_pos = live_gamepads[gamepad_id]["lstick_init_pos"]
-		local rstick_init_pos = live_gamepads[gamepad_id]["rstick_init_pos"]
-		
-		local stick_rad = 13
-		local lpos = vmath.vector3(0)
-		local rpos = vmath.vector3(0)
-		lpos.x = gp.stick_values.stick_left.x * stick_rad + lstick_init_pos.x
-		lpos.y = gp.stick_values.stick_left.y * stick_rad + lstick_init_pos.y
-		rpos.x = gp.stick_values.stick_right.x * stick_rad + rstick_init_pos.x
-		rpos.y = gp.stick_values.stick_right.y * stick_rad + rstick_init_pos.y
+			local cross = live_gamepads[gamepad_id]["cross"]
+			local cross_pos = gui.get_position(cross)
+			cross_pos.x = cross_pos.x + gp.stick_values.stick_left.x * cross_speed
+			cross_pos.y = cross_pos.y + gp.stick_values.stick_left.y * cross_speed
 
-		local cross = live_gamepads[gamepad_id]["cross"]
-		local cross_pos = gui.get_position(cross)
-		cross_pos.x = cross_pos.x + gp.stick_values.stick_left.x * cross_speed
-		cross_pos.y = cross_pos.y + gp.stick_values.stick_left.y * cross_speed
+			if cross_pos.x > rendercam.window.x then
+				cross_pos.x = rendercam.window.x
+			elseif cross_pos.x < 0 then
+				cross_pos.x = 0
+			end
+			if cross_pos.y > rendercam.window.y then
+				cross_pos.y = rendercam.window.y
+			elseif cross_pos.y < 0 then
+				cross_pos.y = 0
+			end
+			gui.set_position(cross, cross_pos)
+			gui.set_position(lstick, lpos)
+			gui.set_position(rstick, rpos)
 
-		if cross_pos.x > rendercam.window.x then
-			cross_pos.x = rendercam.window.x
-		elseif cross_pos.x < 0 then
-			cross_pos.x = 0
-		end
-		if cross_pos.y > rendercam.window.y then
-			cross_pos.y = rendercam.window.y
-		elseif cross_pos.y < 0 then
-			cross_pos.y = 0
-		end
-		gui.set_position(cross, cross_pos)
-		gui.set_position(lstick, lpos)
-		gui.set_position(rstick, rpos)
+			if live_gamepads[gamepad_id]["ready_state"] == false and gp.trigger_values.trigger_right == 1 then
+				if gui.pick_node(self.node_ready, cross_pos.x, cross_pos.y) == true then
+					live_gamepads[gamepad_id]["ready_state"] = true
+					gui.set_enabled(live_gamepads[gamepad_id]["ready"], true)
+					print("gamepad id: " .. tostring(gamepad_id) .. " is ready!")
 
-		if live_gamepads[gamepad_id]["ready_state"] == false and gp.trigger_values.trigger_right == 1 then
-			if gui.pick_node(self.node_ready, cross_pos.x, cross_pos.y) == true then
-				live_gamepads[gamepad_id]["ready_state"] = true
-				gui.set_enabled(live_gamepads[gamepad_id]["ready"], true)
-				print("gamepad id: " .. tostring(gamepad_id) .. " is ready!")
+					gp_ready_count = gp_ready_count + 1
+					if gp_ready_count == gp_count then
+						-- all players ready, start game!
+						timer_start_game = timer.delay(1, false, start_game)
+					end
+				end
 			end
 		end
 	end

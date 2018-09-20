@@ -1,5 +1,9 @@
 local rendercam = require "rendercam.rendercam"
 
+local live_gamepads = {}
+local has_loaded_level = false
+local frame_delay = 10
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	--msg.post("#level-proxy", "load")
@@ -7,10 +11,33 @@ function init(self)
 
 	rendercam.set_ortho_scale(2)
 end
+
+function update(self, dt)
+end
+
 function on_message(self, message_id, message, sender)
 	if message_id == hash("proxy_loaded") then
 		-- Proxy is loaded. Init and enable it.
 		msg.post(sender, "init")
 		msg.post(sender, "enable")
+
+		pprint(sender)
+		if sender == msg.url("main:/loader#level-proxy") then
+			has_loaded_level = true
+		end
+	end
+
+	if message_id == hash("start_game") then
+		live_gamepads = message.live_gamepads
+		pprint("LOADER start_game")
+		--pprint(live_gamepads)
+		msg.post("#gamepad-select-proxy", "unload")
+		msg.post("#level-proxy", "load")
+
+		timer.delay(0, false, function(self)
+			pprint("TIMER LOADER, live_gamepads:")
+			pprint(live_gamepads)
+			msg.post("level:/controller#level", "live_gamepads", {live_gamepads = live_gamepads})
+		end)
 	end
 end
