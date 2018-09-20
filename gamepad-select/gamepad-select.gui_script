@@ -2,9 +2,9 @@ local rendercam = require "rendercam.rendercam"
 local gamepads = require("input.gamepads")
 
 local gp_count = 0
---local gp = nil
+local gp_ready_count = 0
 
-local cross_speed = 10
+local cross_speed = 25
 local live_gamepads = {}
 
 local player_tints = {}
@@ -23,32 +23,32 @@ local function add_gamepad(self, gamepad_id)
 	local w = rendercam.window.x
 	local h = rendercam.window.y
 	
-	local node_pos = vmath.vector3(node_positions[gamepad_id+1].x * w , node_positions[gamepad_id+1].y * h, 0)
+	local node_pos = vmath.vector3(node_positions[gp_count+1].x * w , node_positions[gp_count+1].y * h, 0)
 
-	local node_controller = nil
-	local node_lstick = nil
-	local node_rstick = nil
-	local node_cross = nil
-	
-	node_controller = gui.clone(self.template_controller)
-	node_lstick = gui.clone(self.template_lstick)
-	node_rstick = gui.clone(self.template_rstick)
-	node_cross = gui.clone(self.template_cross)
+	local node_controller = gui.clone(self.template_controller)
+	local node_lstick = gui.clone(self.template_lstick)
+	local node_rstick = gui.clone(self.template_rstick)
+	local node_cross = gui.clone(self.template_cross)
+	local node_ready = gui.clone(self.template_ready)
 
 	live_gamepads[gamepad_id] = {}
+	live_gamepads[gamepad_id]["gp_counter"] = gp_count
 	live_gamepads[gamepad_id]["gp"] = gamepads.init_gamepad()
 	live_gamepads[gamepad_id]["controller"] = node_controller
 	live_gamepads[gamepad_id]["lstick"] = node_lstick
 	live_gamepads[gamepad_id]["rstick"] = node_rstick
 	live_gamepads[gamepad_id]["cross"] = node_cross
+	live_gamepads[gamepad_id]["ready"] = node_ready
+	live_gamepads[gamepad_id]["ready_state"] = false
 	gui.set_parent(node_lstick, node_controller)
 	gui.set_parent(node_rstick, node_controller)
-	gui.set_parent(node_cross, node_controller)
+	gui.set_parent(node_ready, node_controller)
+	
+	gui.set_position(node_cross, node_pos)
+
 	gui.set_position(node_controller, node_pos)
-	gui.set_color(node_controller, player_tints[gamepad_id+1])
-	gui.set_color(node_cross, player_tints[gamepad_id+1])
-	--gui.set_color(node_lstick, player_tints[gamepad_id+1])
-	--gui.set_color(node_rstick, player_tints[gamepad_id+1])
+	gui.set_color(node_controller, player_tints[gp_count+1])
+	gui.set_color(node_cross, player_tints[gp_count+1])
 	gui.set_enabled(node_controller, true)
 	gui.set_enabled(node_lstick, true)
 	gui.set_enabled(node_rstick, true)
@@ -63,14 +63,17 @@ end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
+	self.node_ready = gui.get_node("ready_btn")
 	self.template_controller = gui.get_node("template/controller")
 	self.template_lstick = gui.get_node("template/lstick")
 	self.template_rstick = gui.get_node("template/rstick")
 	self.template_cross = gui.get_node("template/cross")
+	self.template_ready = gui.get_node("template/ready")
 	gui.set_enabled(self.template_controller, false)
 	gui.set_enabled(self.template_lstick, false)
 	gui.set_enabled(self.template_rstick, false)
 	gui.set_enabled(self.template_cross, false)
+	gui.set_enabled(self.template_ready, false)
 
 	--gp = gamepads.init_gamepad(gp)
 	--for debugging controller positions
@@ -87,6 +90,49 @@ function on_message(self, message_id, message, sender)
 end
 
 function update(self, dt)
+	for gamepad_id,v in pairs(live_gamepads) do
+
+		local gp = live_gamepads[gamepad_id]["gp"]
+		local lstick = live_gamepads[gamepad_id]["lstick"]
+		local rstick = live_gamepads[gamepad_id]["rstick"]
+		local lstick_init_pos = live_gamepads[gamepad_id]["lstick_init_pos"]
+		local rstick_init_pos = live_gamepads[gamepad_id]["rstick_init_pos"]
+		
+		local stick_rad = 13
+		local lpos = vmath.vector3(0)
+		local rpos = vmath.vector3(0)
+		lpos.x = gp.stick_values.stick_left.x * stick_rad + lstick_init_pos.x
+		lpos.y = gp.stick_values.stick_left.y * stick_rad + lstick_init_pos.y
+		rpos.x = gp.stick_values.stick_right.x * stick_rad + rstick_init_pos.x
+		rpos.y = gp.stick_values.stick_right.y * stick_rad + rstick_init_pos.y
+
+		local cross = live_gamepads[gamepad_id]["cross"]
+		local cross_pos = gui.get_position(cross)
+		cross_pos.x = cross_pos.x + gp.stick_values.stick_left.x * cross_speed
+		cross_pos.y = cross_pos.y + gp.stick_values.stick_left.y * cross_speed
+
+		if cross_pos.x > rendercam.window.x then
+			cross_pos.x = rendercam.window.x
+		elseif cross_pos.x < 0 then
+			cross_pos.x = 0
+		end
+		if cross_pos.y > rendercam.window.y then
+			cross_pos.y = rendercam.window.y
+		elseif cross_pos.y < 0 then
+			cross_pos.y = 0
+		end
+		gui.set_position(cross, cross_pos)
+		gui.set_position(lstick, lpos)
+		gui.set_position(rstick, rpos)
+
+		if live_gamepads[gamepad_id]["ready_state"] == false and gp.trigger_values.trigger_right == 1 then
+			if gui.pick_node(self.node_ready, cross_pos.x, cross_pos.y) == true then
+				live_gamepads[gamepad_id]["ready_state"] = true
+				gui.set_enabled(live_gamepads[gamepad_id]["ready"], true)
+				print("gamepad id: " .. tostring(gamepad_id) .. " is ready!")
+			end
+		end
+	end
 end
 
 function on_input(self, action_id, action)
@@ -96,27 +142,6 @@ function on_input(self, action_id, action)
 
 	if action.gamepad ~= nil and live_gamepads[action.gamepad] ~= nil then
 		local gp = live_gamepads[action.gamepad]["gp"]
-		local lstick = live_gamepads[action.gamepad]["lstick"]
-		local rstick = live_gamepads[action.gamepad]["rstick"]
-		local lstick_init_pos = live_gamepads[action.gamepad]["lstick_init_pos"]
-		local rstick_init_pos = live_gamepads[action.gamepad]["rstick_init_pos"]
 		gamepads.on_input(self, action_id, action, gp)
-
-		local stick_rad = 13
-		local lpos = vmath.vector3()
-		local rpos = vmath.vector3()
-		lpos.x = gp.stick_values.stick_left.x * stick_rad + lstick_init_pos.x
-		lpos.y = gp.stick_values.stick_left.y * stick_rad + lstick_init_pos.y
-		rpos.x = gp.stick_values.stick_right.x * stick_rad + rstick_init_pos.x
-		rpos.y = gp.stick_values.stick_right.y * stick_rad + rstick_init_pos.y
-
-		local cross = live_gamepads[action.gamepad]["cross"]
-		local cross_pos = gui.get_position(cross)
-		cross_pos.x = cross_pos.x + gp.stick_values.stick_left.x * cross_speed
-		cross_pos.y = cross_pos.y + gp.stick_values.stick_left.y * cross_speed
-
-		gui.set_position(cross, cross_pos)
-		gui.set_position(lstick, lpos)
-		gui.set_position(rstick, rpos)
 	end
 end
