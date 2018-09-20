@@ -2,7 +2,6 @@ go.property("velocity", vmath.vector3(0,0,0))
 go.property("angular_velocity", 0)
 
 function init(self)
-	pprint(self.velocity)
 	self.had_contact = false
 end
 

@@ -11,6 +11,7 @@ end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
+	--go.delete("terrain")
 	-- simulate gamepad
 	--spawn_player(self, 1)
 end

@@ -150,7 +150,7 @@ function update(self, dt)
 			gui.set_position(lstick, lpos)
 			gui.set_position(rstick, rpos)
 
-			if live_gamepads[gamepad_id]["ready_state"] == false and gp.trigger_values.trigger_right == 1 then
+			if live_gamepads[gamepad_id]["ready_state"] == false and (gp.trigger_values.trigger_right == 1 or gp.pad_values.right.down == 1) then
 				if gui.pick_node(self.node_ready, cross_pos.x, cross_pos.y) == true then
 					live_gamepads[gamepad_id]["ready_state"] = true
 					gui.set_enabled(live_gamepads[gamepad_id]["ready"], true)

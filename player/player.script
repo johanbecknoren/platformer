@@ -1,4 +1,5 @@
 local gamepads = require("input.gamepads")
+local rendercam = require "rendercam.rendercam"
 
 -- Crosshair tints, 4 player max
 local cross_tints = {}
@@ -35,7 +36,7 @@ local WEAPONS = {
 		reload_time = 1.5,
 		move_and_fire = true,
 		fire_bullet = function(self, angle)
-			spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 1 })
+			spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 1, distance = rendercam.window.x*rendercam.get_ortho_scale() })
 			spawn_shell()
 			--sounds.fire_bullet()
 		end
