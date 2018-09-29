@@ -14,7 +14,6 @@ gamepads = /input/custom.gamepadsc
 [display]
 width = 1280
 height = 720
-variable_dt = 1
 
 [script]
 shared_state = 1
@@ -25,6 +24,7 @@ app_icon = /assets/appicons/appicon.ico
 [osx]
 app_icon = /assets/appicons/appicon.icns
 
-[physics]
-debug = 0
+[graphics]
+default_texture_min_filter = linear
+default_texture_mag_filter = linear
 

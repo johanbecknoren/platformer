@@ -1,5 +1,6 @@
 local rendercam = require "rendercam.rendercam"
 local gamepads = require("input.gamepads")
+local common = require("main.common")
 
 local gp_count = 0
 local gp_ready_count = 0
@@ -10,12 +11,6 @@ local live_gamepads = {}
 local timer_start_game = nil
 
 local take_input = true
-
-local player_tints = {}
-player_tints[1] = vmath.vector4(1,0,0,1) -- red
-player_tints[2] = vmath.vector4(0,1,0,1) -- green
-player_tints[3] = vmath.vector4(0,0,1,1) -- blue
-player_tints[4] = vmath.vector4(1,1,0,1) -- yellow
 
 local node_positions ={}
 node_positions[1] = vmath.vector3(0.25,0.75,0)
@@ -51,8 +46,8 @@ local function add_gamepad(self, gamepad_id)
 	gui.set_position(node_cross, node_pos)
 
 	gui.set_position(node_controller, node_pos)
-	gui.set_color(node_controller, player_tints[gp_count+1])
-	gui.set_color(node_cross, player_tints[gp_count+1])
+	gui.set_color(node_controller, common.player_tints[gp_count+1])
+	gui.set_color(node_cross, common.player_tints[gp_count+1])
 	gui.set_enabled(node_controller, true)
 	gui.set_enabled(node_lstick, true)
 	gui.set_enabled(node_rstick, true)

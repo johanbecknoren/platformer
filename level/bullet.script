@@ -9,9 +9,12 @@ go.property("particles", hash(""))
 
 function init(self)
 	self.initial_position = go.get_position()
+	self.correction_physics = vmath.vector3(0)
 end
 
 function update(self, dt)
+	self.correction_physics = vmath.vector3(0)
+	
 	local pos = go.get_position()
 	local d = vmath.rotate(go.get_rotation(), vmath.vector3(0, 1, 0))
 	pos = pos + d * self.speed * dt
@@ -27,6 +30,21 @@ end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("contact_point_response") and (message.other_group == hash("level") or message.other_group == hash("player")) then
+		local proj = vmath.project(self.correction_physics, message.normal * message.distance)
+
+		if proj < 1 then
+			-- Only care for projections that does not overshoot.
+			local comp = (message.distance - message.distance * proj) * message.normal
+			-- Apply compensation
+
+			if message.normal.y > 0 then -- no wall jumps!
+				self.is_jumping = false
+			end
+			local comp = (message.distance - message.distance * proj) * message.normal
+			local new_pos = go.get_position() + comp
+			self.correction_physics = self.correction_physics + comp
+			go.set_position(new_pos)
+		end
 		local angle = -math.atan2(-message.normal.x, -message.normal.y)
 		local quat = vmath.quat_rotation_z(angle)
 		go.set_rotation(quat)

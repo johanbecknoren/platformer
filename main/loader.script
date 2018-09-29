@@ -6,8 +6,8 @@ local frame_delay = 10
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	--msg.post("#level-proxy", "load")
-	msg.post("#gamepad-select-proxy", "load")
+	msg.post("#level-proxy", "load")
+	--msg.post("#gamepad-select-proxy", "load")
 
 	rendercam.set_ortho_scale(2)
 end

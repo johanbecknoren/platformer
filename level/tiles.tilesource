@@ -2010,5 +2010,5 @@ animations {
   flip_horizontal: 0
   flip_vertical: 0
 }
-extrude_borders: 2
+extrude_borders: 1
 inner_padding: 0
