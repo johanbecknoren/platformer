@@ -31,9 +31,12 @@ function on_message(self, message_id, message, sender)
 end
 
 function on_input(self, action_id, action)
+	if action_id == hash("KEY_ENTER") and action.pressed then
+		spawn_player(self, 0)
+	end
+
 	-- on gamepad input, check if said gamepad has already been active
 	-- if not, spawn a new player and associate gamepad id to that player
-
 	if action.gamepad ~= nil and live_gamepads[action.gamepad] == nil then
 		--spawn_player(self, action.gamepad)
 		--[[local props = {}
