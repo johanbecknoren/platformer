@@ -1,3 +1,6 @@
+images {
+  image: "/assets/images/player/images/tombstone.png"
+}
 animations {
   id: "idle_right"
   images {

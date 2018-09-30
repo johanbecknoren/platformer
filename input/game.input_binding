@@ -22,6 +22,10 @@ key_trigger {
   input: KEY_ENTER
   action: "KEY_ENTER"
 }
+key_trigger {
+  input: KEY_RSHIFT
+  action: "KEY_RSHIFT"
+}
 mouse_trigger {
   input: MOUSE_BUTTON_LEFT
   action: "click"
