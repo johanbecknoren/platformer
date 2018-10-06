@@ -1,6 +1,9 @@
 images {
   image: "/assets/images/weapons/m249.png"
 }
+images {
+  image: "/assets/images/weapons/grenade.png"
+}
 margin: 0
-extrude_borders: 0
+extrude_borders: 1
 inner_padding: 0

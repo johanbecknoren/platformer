@@ -23,7 +23,7 @@ end
 
 local WEAPONS = {
 	{
-		name = "AK-97",
+		name = "KSP-90",
 		anim = "m249",
 		scale = 0.5,
 		bullets_per_second = 10,
@@ -33,9 +33,24 @@ local WEAPONS = {
 		move_and_fire = true,
 		fire_bullet = function(self, angle)
 			local rot = go.get_rotation()
-			go.animate("weapon_local", "position.x", go.PLAYBACK_ONCE_PINGPONG, -20, go.EASING_LINEAR, 1 / 10)
+			go.animate("weapon_local", "position.x", go.PLAYBACK_ONCE_PINGPONG, -20, go.EASING_LINEAR, 1 / 10) -- recoil
 			spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 10, distance = rendercam.window.x*rendercam.get_ortho_scale() })
 			spawn_shell()
+			--sounds.fire_bullet()
+		end
+	},
+	{
+		name = "HE-grenade",
+		anim = "grenade",
+		scale = 0.5,
+		bullets_per_second = 10,
+		magazine_size = 1,
+		spread = 0,
+		reload_time = 1.5,
+		move_and_fire = true,
+		fire_bullet = function(self, angle)
+			local rot = go.get_rotation()
+			spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 10, distance = rendercam.window.x*rendercam.get_ortho_scale() })
 			--sounds.fire_bullet()
 		end
 	},
@@ -214,11 +229,30 @@ local function anim_tombstone_skip(self)
 end
 
 function on_input(self, action_id, action)
-	if action_id ~= nil then
-		--print(action_id, action.value)
-	end
-
 	-- gamepad
+
+	local function fire()
+		local now = socket.gettime()
+		if not self.last_bullet or (now - self.last_bullet) >= self.bullet_interval then
+			if self.bullets_left > 0 then
+				-- add weapon spread to angle
+				local aim_vec = go.get_world_position("crosshair") - go.get_world_position("weapon")--go.get_world_position()
+				local angle = -math.atan2(aim_vec.x, aim_vec.y)
+				local spread_rad = self.weapon.spread * math.pi / 180
+				local spread_rand = (math.random() * 2 - 1) * spread_rad
+				angle = angle + spread_rand
+				local weapon_angle_spread = vmath.quat_rotation_z(angle)
+				self.weapon.fire_bullet(self, weapon_angle_spread)
+				self.bullets_left = self.bullets_left - 1
+				self.bullets_fired_in_burts = self.bullets_fired_in_burts + 1
+				--update_weapon_text(self)
+				--else
+				--sounds.no_ammo()
+			end
+			self.last_bullet = now
+		end
+	end
+	
 	if action.gamepad ~= nil and action.gamepad == self.gamepad_id then
 		label.set_text("#label", "Health: " .. self.health)
 		self.gp = gamepads.on_input(self, action_id, action, self.gp)
@@ -237,25 +271,7 @@ function on_input(self, action_id, action)
 		end
 		-- fire!
 		if self.gp.trigger_values.trigger_right > 0 and self.dead == false then
-			local now = socket.gettime()
-			if not self.last_bullet or (now - self.last_bullet) >= self.bullet_interval then
-				if self.bullets_left > 0 then
-					-- add weapon spread to angle
-					local aim_vec = go.get_world_position("crosshair") - go.get_world_position("weapon")--go.get_world_position()
-					local angle = -math.atan2(aim_vec.x, aim_vec.y)
-					local spread_rad = self.weapon.spread * math.pi / 180
-					local spread_rand = (math.random() * 2 - 1) * spread_rad
-					angle = angle + spread_rand
-					local weapon_angle_spread = vmath.quat_rotation_z(angle)
-					self.weapon.fire_bullet(self, weapon_angle_spread)
-					self.bullets_left = self.bullets_left - 1
-					self.bullets_fired_in_burts = self.bullets_fired_in_burts + 1
-					--update_weapon_text(self)
-				--else
-					--sounds.no_ammo()
-				end
-				self.last_bullet = now
-			end
+			fire()
 		end
 		-- aim
 		local aim_vec = go.get_world_position("crosshair") - go.get_world_position()
@@ -266,7 +282,7 @@ function on_input(self, action_id, action)
 	end
 
 	-- keyboard (for debug)
-	if action_id == hash("KEY_SPACE") and action.pressed and self.is_jumping == false then
+	if action_id == hash("KEY_SPACE") and action.pressed and self.is_jumping == false and self.dead == false then
 		self.is_jumping = true
 		self.velocity.y = self.velocity.y + self.player_jump_speed
 	elseif action_id == hash("KEY_A") then
@@ -296,6 +312,8 @@ function on_input(self, action_id, action)
 	elseif action_id == hash("KEY_RSHIFT") and action.pressed then
 		self.health = 0
 		player_dead(self)
+	elseif action_id == hash("MB_LEFT") and self.dead == false then
+		fire()
 	end
 end
 
