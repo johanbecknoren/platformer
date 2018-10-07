@@ -5,15 +5,12 @@ local function spawn_player(self, gamepad_id)
 	props[hash("/player")] = {gamepad_id = gamepad_id}
 	local player_id = collectionfactory.create("/controller#player_factory", vmath.vector3(500 + 300*gamepad_id,500,0), vmath.quat(), props)
 	live_gamepads[gamepad_id] = player_id["/player"]
-	print("Gamepad added, id: " .. tostring(gamepad_id))
 	go.set(msg.url(nil, player_id["/player"], "gamepad-input"), "gamepad_id", gamepad_id)
+	go.set(msg.url(nil, player_id["/player"], "gamepad-input"), "weapon_local_id", player_id[hash("/weapon_local")])
 end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	--go.delete("terrain")
-	-- simulate gamepad
-	--spawn_player(self, 1)
 end
 
 function on_message(self, message_id, message, sender)
@@ -33,18 +30,6 @@ end
 function on_input(self, action_id, action)
 	if action_id == hash("KEY_ENTER") and action.pressed then
 		spawn_player(self, 0)
-	end
-
-	-- on gamepad input, check if said gamepad has already been active
-	-- if not, spawn a new player and associate gamepad id to that player
-	if action.gamepad ~= nil and live_gamepads[action.gamepad] == nil then
-		--spawn_player(self, action.gamepad)
-		--[[local props = {}
-		props[hash("/player")] = {gamepad_id = action.gamepad}
-		local player_id = collectionfactory.create("/controller#player_factory", vmath.vector3(500 + 300*action.gamepad,500,0), vmath.quat(), props)
-		live_gamepads[action.gamepad] = player_id["/player"]
-		print("Gamepad added, id: " .. tostring(action.gamepad))
-		go.set(msg.url(nil, player_id["/player"], "gamepad-input"), "gamepad_id", action.gamepad)--]]
 	end
 end
 
