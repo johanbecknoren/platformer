@@ -11,6 +11,7 @@ go.property("player_jump_speed", 1500)
 go.property("velocity", vmath.vector3(0,0,0))
 go.property("gamepad_id", 0)
 go.property("weapon_local_id", hash("/weapon_local"))
+go.property("weapon_instance_id", hash("/weapon_local"))
 
 local function spawn_bullet(angle, properties)
 	factory.create("/controller#bullet_factory", go.get_world_position("weapon") + vmath.rotate(angle, BULLET_OFFSET), angle, properties, 0.2)
@@ -22,51 +23,45 @@ local function spawn_shell()
 	--msg.post("/game", "spawn_shell", { position = go.get_world_position() })
 end
 
-local WEAPONS = {
-	{
-		name = "KSP-90",
-		anim = "m249",
-		scale = 0.5,
-		bullets_per_second = 10,
-		magazine_size = 2000,
-		spread = 2,
-		reload_time = 1.5,
-		move_and_fire = true,
-		fire_bullet = function(self, angle)
-			local rot = go.get_rotation()
-			go.animate("weapon_local", "position.x", go.PLAYBACK_ONCE_PINGPONG, -20, go.EASING_LINEAR, 1 / 10) -- recoil
-			spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 10, distance = rendercam.window.x*rendercam.get_ortho_scale() })
-			spawn_shell()
-			--sounds.fire_bullet()
-		end
-	},
-	{
-		name = "HE-grenade",
-		anim = "grenade",
-		scale = 0.5,
-		bullets_per_second = 10,
-		magazine_size = 1,
-		spread = 0,
-		reload_time = 1.5,
-		move_and_fire = true,
-		fire_bullet = function(self, angle)
-			local rot = go.get_rotation()
-			spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 10, distance = rendercam.window.x*rendercam.get_ortho_scale() })
-			--sounds.fire_bullet()
-		end
-	},
-}
+local function toss_grenade(grenade_id, angle)
+	local angle2 = go.get_world_position("crosshair") - go.get_world_position()
+	pprint("TOSS GRENADE!")
+
+	msg.post(grenade_id, "set_parent")
+	
+	local pickup_coll_url = msg.url(grenade_id)
+	pickup_coll_url.fragment = "collisionobject" -- another player should be able to pick up the grenade and throw it back?
+	msg.post(pickup_coll_url, "enable")
+
+	local grenade_coll_url = msg.url(grenade_id)
+	grenade_coll_url.fragment = "collisionobject_grenade"
+	msg.post(grenade_coll_url, "enable")
+	
+	msg.post(grenade_id, "tossed", {angle = vmath.normalize(angle2)})
+	--msg.post(grenade_coll_url, "apply_force", {force = angle2*-100000, position = go.get_world_position()})
+	
+	-- TODO add separate "grenade_collisionobject" to weapon.go, disabled from start
+	-- enable that coll obj, should be group player and level I think. Where resolve those collisions (level or weapon script)?!
+	-- start timer here, grenade should explode when it reaches 0.
+	--coll_url.fragment = "collisionobject"
+	--msg.post(coll_url, "enable")
+end
 
 local function change_weapon(self, index)
-	self.weapon = WEAPONS[index]
-	self.weapon_angle = vmath.quat()
-	self.bullets_left = self.weapon.magazine_size
-	self.magazines = 5
-	self.bullet_interval = 1 / self.weapon.bullets_per_second
-	self.velocity = vmath.vector3()
-	self.correction = vmath.vector3()
-	self.bullets_fired_in_burts = 0
-	--update_weapon_text(self)
+	if index == nil then
+		self.weapon = nil
+	else
+		--self.weapon = WEAPONS[index]
+		self.weapon = common.weapons[index]
+		self.weapon_angle = vmath.quat()
+		self.bullets_left = self.weapon.magazine_size
+		self.magazines = 5
+		self.bullet_interval = 1 / self.weapon.bullets_per_second
+		self.velocity = vmath.vector3()
+		self.correction = vmath.vector3()
+		self.bullets_fired_in_burts = 0
+		--update_weapon_text(self)
+	end
 end
 
 local function player_dead(self)
@@ -102,6 +97,19 @@ local function init_gp(self)
 	self.gp = gamepads.init_gamepad()
 end
 
+local function init_weapons(self)
+	common.weapons[hash("m249")].fire_bullet = function(self, angle)
+		go.animate("weapon_local", "position.x", go.PLAYBACK_ONCE_PINGPONG, -20, go.EASING_LINEAR, 1 / 10) -- recoil
+		spawn_bullet(angle, { speed = 2000, type = BULLET, damage = 10, distance = rendercam.window.x*rendercam.get_ortho_scale() })
+		spawn_shell()
+		--sounds.fire_bullet()
+	end
+	common.weapons[hash("grenade")].fire_bullet = function(self, angle)
+		toss_grenade(self.weapon_instance_id, angle)
+		change_weapon(self, nil)
+	end
+end
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	print("PLAYER INIT! gp id: " .. tostring(self.gamepad_id))
@@ -117,9 +125,10 @@ function init(self)
 	self.weapon_flipped = false
 	self.tombstone_skip = false
 	self.pickup_pressed = 0
-	change_weapon(self, 1)
+	change_weapon(self, nil)
 
 	init_gp(self)
+	init_weapons(self)
 
 	msg.post("tombstone", "disable")
 	msg.post("player#collisionobject_tombstone", "disable")
@@ -151,7 +160,7 @@ function update(self, dt)
 	end
 	
 	-- gamepad input
-	pos_player.x = pos_player.x + self.gp.stick_values.stick_left.x * dt * self.player_speed
+	pos_player.x = pos_player.x + self.gp.stick_values.stick_left.x * dt * self.player_speed + self.velocity.x * dt
 	go.set_position(pos_player)
 
 	local pos_cross = go.get_position("crosshair")
@@ -166,26 +175,38 @@ function update(self, dt)
 
 	-- always face in aim direction
 	sprite.set_hflip("#sprite", pos_cross.x > 0) -- player
-	if pos_cross.x < 0 and self.weapon_flipped == false then
+	if self.weapon and pos_cross.x < 0 and self.weapon_flipped == false then
 		self.weapon_flipped = true
-		sprite.set_vflip("weapon_instance#sprite", true) -- weapon
-	elseif pos_cross.x > 0 and self.weapon_flipped == true then
+		local url = msg.url(self.weapon_instance_id)
+		url.fragment = "sprite"
+		sprite.set_vflip(url, true)
+	elseif self.weapon and pos_cross.x > 0 and self.weapon_flipped == true then
 		self.weapon_flipped = false
-		sprite.set_vflip("weapon_instance#sprite", false)
+		local url = msg.url(self.weapon_instance_id)
+		url.fragment = "sprite"
+		sprite.set_vflip(url, false)
 	end
 
-	-- change animation?
+	-- change animation
 	local anim = "idle"
 	if math.abs(self.gp.stick_values.stick_left.x) > 0 then
 		anim = "run"
 	end
-	if math.abs(self.velocity.y) > 0 then
+	if self.is_jumping == true then
 		anim = "jump"
 	end
 	set_anim(self, anim)
 end
 
 function on_message(self, message_id, message, sender)
+	if message_id == hash("take_damage") then
+		take_damage(self, message.damage)
+		if message.offset_velocity then
+			pprint("message.offset_velocity:")
+			pprint(message.offset_velocity)
+			self.velocity = self.velocity + message.offset_velocity
+		end
+	end
 	if message_id == hash("contact_point_response") and message.distance > 0 then
 		if (message.other_group == hash("level") or message.other_group == hash("bullet")) then
 			local proj = vmath.project(self.correction_physics, message.normal * message.distance)
@@ -194,10 +215,10 @@ function on_message(self, message_id, message, sender)
 				-- Only care for projections that does not overshoot.
 				local comp = (message.distance - message.distance * proj) * message.normal
 				-- Apply compensation
-				
 				if message.normal.y > 0 then -- no wall jumps!
 					self.is_jumping = false
 				end
+				
 				local comp = (message.distance - message.distance * proj) * message.normal
 				local new_pos = go.get_position() + comp
 				self.correction_physics = self.correction_physics + comp
@@ -215,19 +236,22 @@ function on_message(self, message_id, message, sender)
 		elseif self.pickup_do == true and message.other_group == hash("pickup") and message.distance > 0 then
 			pprint("Pickup!")
 			self.pickup_do = false
-			--pprint(message)
-			-- drop current weapon (if any)
-			-- pick up new weapon
-			-- disable new-weapon collision object
-			-- (apply or "init" new weapon e.g. medpack)
-			go.delete("weapon_instance") -- TODO dont delete current weapon, should be dropped (and retain ammo etc.)
-			pprint(self.weapon_local_id)
-			pprint(message.other_id)
+			if self.weapon ~= nil then
+				go.delete(self.weapon_instance_id) -- TODO dont delete current weapon, should be dropped (and retain ammo etc.)
+			end
+			self.weapon_instance_id = message.other_id
 			local new_weapon_collisionobj = msg.url(message.other_id)
 			new_weapon_collisionobj.fragment = "collisionobject"
 			msg.post(new_weapon_collisionobj, "disable")
 			msg.post(message.other_id, "set_parent", {parent_id = self.weapon_local_id, keep_world_transform = 1})
-			--go.animate(message.other_id, "position", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(0), go.EASING_INOUTEXPO, 1)
+			go.animate(message.other_id, "position", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(0), go.EASING_INOUTEXPO, 0.1, 0, function(self)
+				go.set_rotation(go.get_rotation(self.weapon_local_id), message.other_id)
+			end)
+			self.weapon_instance_id = message.other_id
+			msg.post(message.other_id, "picked_up")
+			local weapon_script_url = msg.url(message.other_id)
+			weapon_script_url.fragment = "weapon"
+			change_weapon(self, go.get(weapon_script_url, "id"))
 		end
 	end
 end
@@ -243,7 +267,6 @@ local function anim_tombstone_skip(self)
 	local dir = 1
 	if self.gp.stick_values.stick_left.x < 0 then dir = -1 end
 	local pos = go.get_position("player")
-	--anim(self, "tombstone", "position.x", pos.x, dir*100)
 	anim(self, "player", "position.x", pos.x, dir*100)
 	anim(self, "player", "position.y", pos.y, 20)
 end
@@ -290,7 +313,7 @@ function on_input(self, action_id, action)
 			self.velocity.y = self.velocity.y + self.player_jump_speed
 		end
 		-- fire!
-		if self.gp.trigger_values.trigger_right > 0 and self.dead == false then
+		if self.weapon and self.gp.trigger_values.trigger_right > 0 and self.dead == false then
 			fire()
 		end
 		-- pickup
@@ -299,6 +322,7 @@ function on_input(self, action_id, action)
 			self.pickup_pressed = 1
 		elseif self.gp.pad_values.right.right == 0 then
 			self.pickup_pressed = 0
+			self.pickup_do = false
 		end
 		-- aim
 		local aim_vec = go.get_world_position("crosshair") - go.get_world_position()
@@ -339,12 +363,7 @@ function on_input(self, action_id, action)
 	elseif action_id == hash("KEY_RSHIFT") and action.pressed then
 		self.health = 0
 		player_dead(self)
-	elseif action_id == hash("MB_LEFT") and self.dead == false then
+	elseif false and action_id == hash("MB_LEFT") and self.weapon and self.dead == false then
 		fire()
 	end
-end
-
-function on_reload(self)
-	-- Add reload-handling code here
-	-- Remove this function if not needed
 end

@@ -1,0 +1,123 @@
+go.property("id", hash("grenade")) --needs to match sprite image name
+
+local debug_str = {}
+debug_str[hash("grenade")] = "grenade"
+debug_str[hash("m249")] = "m249"
+
+function init(self)
+	-- Add initialization code here
+	-- Remove this function if not needed
+	sprite.play_flipbook("#sprite", self.id)
+
+	msg.post("#collisionobject_grenade", "disable")
+
+	label.set_text("#label", debug_str[self.id])
+end
+
+function update(self, dt)
+	self.correction_physics = vmath.vector3(0)
+	if self.tossed == true then
+		--pprint("Tossed!")
+		local pos = go.get_position()
+		-- update velocity with gravity
+		self.velocity.y = self.velocity.y + (4 * (-(9.82)))
+		pos = pos + self.velocity * dt
+		go.set_position(pos)
+
+		local delta_angle = 2 * math.pi / self.num_ray_casts -- radians
+		local origin = go.get_world_position()
+		local grenade_radius = 400
+		-- DEBUG radius render
+		for i=1,self.num_ray_casts do
+			local angle = i * delta_angle
+			local to = origin + vmath.vector3(math.cos(angle), math.sin(angle), 0) * grenade_radius
+			msg.post("@render:", "draw_line", { start_point = origin, end_point = to, color = vmath.vector4(1, 1, 0
+			, 1) } )
+		end
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	--pprint(message_id)
+	if message_id == hash("picked_up") then
+		self.tossed = false
+	end
+	if message_id == hash("tossed") then
+		self.tossed = true
+		self.num_ray_casts = 15
+		local toss_power = 2000
+
+		self.velocity = vmath.vector3(0)
+		-- message.angle is a direction vector
+		self.velocity = vmath.vector3(message.angle.x * toss_power, message.angle.y*toss_power, 0)
+
+		self.rays = {}
+		self.damaged_players = {} -- only damage player for the first ray-hit
+
+		timer.delay(2, false, function(self)
+			pprint("BOOOOM!")
+			factory.create("#grenade_explosion_factory", go.get_world_position())
+			-- send ray-casts and check for collisions
+			-- give damage according to ray cast responses
+			-- after all ray cast responses recevied, delete go
+			local delta_angle = 2 * math.pi / self.num_ray_casts -- radians
+			local origin = go.get_world_position()
+			local grenade_radius = 400
+			for i=1,self.num_ray_casts do
+				local angle = i * delta_angle
+				local to = origin + vmath.vector3(math.cos(angle), math.sin(angle), 0) * grenade_radius
+				self.rays[i] = to - origin
+				physics.ray_cast(origin, to, {hash("level"), hash("player")}, i)
+			end
+			go.delete()
+		end)
+	end
+
+	if message_id == hash("ray_cast_response") then
+		-- act on the hit
+		pprint("HIT!")
+		pprint(message)
+
+		if message.group == hash("player") and self.damaged_players[message.id] == nil then
+			self.damaged_players[message.id] = true
+			local grenade_max_damage = 50
+			--local dir = self.rays[message.request_id] * 10
+			local dir = vmath.normalize(go.get_world_position(message.id) - go.get_world_position()) * 1000
+			msg.post(message.id, "take_damage", {damage = math.floor((1 - message.fraction) * grenade_max_damage), offset_velocity = (1 - message.fraction) * dir})
+		end
+
+		self.num_ray_casts = self.num_ray_casts - 1
+		if self.num_ray_casts == 0 then
+			go.delete()
+		end
+	elseif message_id == hash("ray_cast_missed") then
+		-- act on the miss
+		pprint("MISS!")
+		pprint(message)
+
+		self.num_ray_casts = self.num_ray_casts - 1
+		if self.num_ray_casts == 0 then
+			go.delete()
+		end
+	end
+
+	if  message_id == hash("contact_point_response") and message.distance > 0 then
+		if message.group == hash("level") then
+			local proj = vmath.project(self.correction_physics, message.normal * message.distance)
+
+			if proj < 1 then
+				-- Only care for projections that does not overshoot.
+				local comp = (message.distance - message.distance * proj) * message.normal
+				-- Apply compensation
+
+				local comp = (message.distance - message.distance * proj) * message.normal
+				local new_pos = go.get_position() + comp
+				self.correction_physics = self.correction_physics + comp
+				go.set_position(new_pos)
+				self.velocity.x = self.velocity.x - self.velocity.x * math.abs(message.normal.x) * 1.5
+				self.velocity.y = self.velocity.y - self.velocity.y * math.abs(message.normal.y) * 1.5
+				self.velocity.z = self.velocity.z - self.velocity.z * math.abs(message.normal.z) * 1.5
+			end
+		end
+	end
+end

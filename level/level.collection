@@ -1,7 +1,7 @@
 name: "level"
 instances {
   id: "weapon"
-  prototype: "/player/weapon.go"
+  prototype: "/weapons/weapon.go"
   position {
     x: 922.0
     y: 553.0
@@ -12,6 +12,42 @@ instances {
     y: 0.0
     z: 0.0
     w: 1.0
+  }
+  component_properties {
+    id: "weapon"
+    properties {
+      id: "id"
+      value: "m249"
+      type: PROPERTY_TYPE_HASH
+    }
+  }
+  scale3 {
+    x: 1.0
+    y: 1.0
+    z: 1.0
+  }
+}
+instances {
+  id: "weapon1"
+  prototype: "/weapons/weapon.go"
+  position {
+    x: 1192.0
+    y: 876.0
+    z: 0.1
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+  component_properties {
+    id: "weapon"
+    properties {
+      id: "id"
+      value: "grenade"
+      type: PROPERTY_TYPE_HASH
+    }
   }
   scale3 {
     x: 1.0
@@ -34,6 +70,7 @@ embedded_instances {
   "mask: \\\"player\\\"\\n"
   "mask: \\\"decals\\\"\\n"
   "mask: \\\"bullet\\\"\\n"
+  "mask: \\\"grenade\\\"\\n"
   "embedded_collision_shape {\\n"
   "  shapes {\\n"
   "    shape_type: TYPE_BOX\\n"
@@ -112,7 +149,7 @@ embedded_instances {
   ""
   position {
     x: 291.0
-    y: 86.0
+    y: 123.0
     z: 0.0
   }
   rotation {
@@ -245,6 +282,7 @@ embedded_instances {
   "mask: \\\"player\\\"\\n"
   "mask: \\\"decals\\\"\\n"
   "mask: \\\"bullet\\\"\\n"
+  "mask: \\\"grenade\\\"\\n"
   "linear_damping: 0.0\\n"
   "angular_damping: 0.0\\n"
   "locked_rotation: false\\n"
@@ -265,6 +303,44 @@ embedded_instances {
   position {
     x: 0.0
     y: 132.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+  scale3 {
+    x: 1.0
+    y: 1.0
+    z: 1.0
+  }
+}
+embedded_instances {
+  id: "debug"
+  data: "embedded_components {\n"
+  "  id: \"grenade_factory\"\n"
+  "  type: \"factory\"\n"
+  "  data: \"prototype: \\\"/weapons/weapon.go\\\"\\n"
+  "load_dynamically: false\\n"
+  "\"\n"
+  "  position {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "  }\n"
+  "  rotation {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "    w: 1.0\n"
+  "  }\n"
+  "}\n"
+  ""
+  position {
+    x: 0.0
+    y: 0.0
     z: 0.0
   }
   rotation {

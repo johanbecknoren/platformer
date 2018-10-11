@@ -1,0 +1,35 @@
+local function pfx_cb(self, go_id, emitter_id, state)
+	if (state == particlefx.EMITTER_STATE_SLEEPING) then
+		pprint("DELET_InG!")
+		go.delete()
+	end
+end
+
+function init(self)
+	particlefx.play(".", pfx_cb)
+end
+
+function final(self)
+	-- Add finalization code here
+	-- Remove this function if not needed
+end
+
+function update(self, dt)
+	-- Add update code here
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	-- Add message-handling code here
+	-- Remove this function if not needed
+end
+
+function on_input(self, action_id, action)
+	-- Add input-handling code here
+	-- Remove this function if not needed
+end
+
+function on_reload(self)
+	-- Add reload-handling code here
+	-- Remove this function if not needed
+end

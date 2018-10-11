@@ -30,6 +30,20 @@ end
 function on_input(self, action_id, action)
 	if action_id == hash("KEY_ENTER") and action.pressed then
 		spawn_player(self, 0)
+	elseif action_id == hash("MB_LEFT") and action.pressed then
+		-- drop grenade and light fuse
+		pprint(action)
+		local id = factory.create("debug#grenade_factory", vmath.vector3(action.x*2, action.y*2, 0.1), go.get_rotation(), {id = hash("grenade")})
+
+		local pickup_coll_url = msg.url(id)
+		pickup_coll_url.fragment = "collisionobject" -- another player should be able to pick up the grenade and throw it back?
+		msg.post(pickup_coll_url, "enable")
+
+		local grenade_coll_url = msg.url(id)
+		grenade_coll_url.fragment = "collisionobject_grenade"
+		msg.post(grenade_coll_url, "enable")
+
+		msg.post(id, "tossed", {angle = vmath.vector3(0)})
 	end
 end
 
